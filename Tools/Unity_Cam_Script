@@ -1,0 +1,166 @@
+using System.Collections;
+using System.Collections.Generic;
+using Unity.VisualScripting;
+using UnityEngine;
+
+public class Cam : MonoBehaviour
+{
+    public GameObject target;
+    public float speed_x = 100;
+    public float speed_y = 100;
+    public float camera_dist;
+    public bool scroll;
+    public float scroll_speed = 200;
+    public float scroll_min_dist;
+    public float scroll_max_dist;
+    public float camera_height_offest;
+    public float camera_side_offset;
+    public float camera_front_offest;
+    public bool y_inversion;
+    [Range(0, 360)] public float y_angle_start = 0;
+    [Range(0, 360)] public float y_angle_restrictions = 90;
+    float y_angle;
+    float y_angle_old;
+    [Range(0, 360)] public float x_angle_start = 0;
+    [Range(0, 360)] public float x_angle_restrictions = 360;
+    public bool default_cursor_state;
+    public GameObject[] objects_rotate_with_camera;
+    public GameObject[] objects_rotate_with_camera_y;
+    float x_angle;
+    float x_angle_old;
+    GameObject y_object_rotation;
+    GameObject x_object_rotation;
+    GameObject camera_base_object;
+    Vector3 x_rotation;
+
+    class Rotate_Object_With_Cam : MonoBehaviour
+    {
+        public GameObject cam_object;
+        public bool only_y;
+        private void Update()
+        {
+            if (only_y)
+            {
+                gameObject.transform.eulerAngles = new Vector3(0, cam_object.transform.eulerAngles.y,0);
+            }
+            else
+            {
+                gameObject.transform.rotation = cam_object.transform.rotation;
+            }
+        }
+    }
+
+    private void Awake()
+    {
+        camera_base_object = new GameObject();
+        camera_base_object.name = gameObject.name;
+        camera_base_object.transform.localEulerAngles = new Vector3(0, 0, 0);
+        y_object_rotation = new GameObject();
+        y_object_rotation.transform.parent = camera_base_object.transform;
+        y_object_rotation.transform.position = Vector3.zero;
+        y_object_rotation.transform.localEulerAngles = new Vector3(0, 0, 0);
+        y_object_rotation.name = "CameraObjectY";
+        x_object_rotation = new GameObject();
+        x_object_rotation.transform.position = Vector3.zero;
+        x_object_rotation.transform.parent = y_object_rotation.transform;
+        x_object_rotation.transform.localEulerAngles = new Vector3(y_angle_start, 0, 0);
+        x_object_rotation.name = "CameraObjectX";
+
+        gameObject.transform.position = target.transform.position;
+        gameObject.transform.parent = x_object_rotation.transform;
+        gameObject.transform.localEulerAngles = new Vector3(0, 0, 0);
+        gameObject.transform.localPosition = new Vector3(0, 0, -camera_dist);
+
+        Cursor.visible = default_cursor_state;
+        if(Cursor.visible == false)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+        }
+        else
+        {
+            Cursor.lockState = CursorLockMode.None;
+        }
+
+        for (int i = 0; i < objects_rotate_with_camera.Length; i++)
+        {
+            Rotate_Object_With_Cam c = objects_rotate_with_camera[i].AddComponent<Rotate_Object_With_Cam>();
+            c.cam_object = gameObject;
+            c.only_y = false;
+        }
+        for (int i = 0; i < objects_rotate_with_camera_y.Length; i++)
+        {
+            Rotate_Object_With_Cam c = objects_rotate_with_camera_y[i].AddComponent<Rotate_Object_With_Cam>();
+            c.cam_object = gameObject;
+            c.only_y = true;
+        }
+    }
+
+
+    void Update()
+    {
+        camera_base_object.transform.position = target.transform.position;
+
+        if (scroll)
+        {
+            camera_dist += Input.GetAxis("Mouse ScrollWheel") * Time.deltaTime * scroll_speed;
+            if (camera_dist < 0) camera_dist = 0;
+            if (camera_dist < scroll_min_dist)
+            {
+                camera_dist = scroll_min_dist;
+            }
+            else if (camera_dist > scroll_max_dist)
+            {
+                camera_dist = scroll_max_dist;
+            }
+        }
+
+        gameObject.transform.localPosition = new Vector3(0, 0, -camera_dist);
+
+        x_object_rotation.transform.localPosition = new Vector3(camera_side_offset, camera_height_offest, camera_front_offest);
+
+        if (y_angle_restrictions < 360)
+        {
+            if(y_inversion)
+                y_angle += Input.GetAxis("Mouse Y") * Time.deltaTime * speed_y;
+            else
+                y_angle -= Input.GetAxis("Mouse Y") * Time.deltaTime * speed_y;
+
+            if (y_angle< -y_angle_restrictions / 2)
+            {
+                y_angle = -y_angle_restrictions / 2;
+            }
+            else if(y_angle > y_angle_restrictions / 2)
+            {
+                y_angle = y_angle_restrictions / 2;
+            }
+
+            x_object_rotation.transform.Rotate(new Vector3(y_angle - y_angle_old, 0, 0));
+            y_angle_old = y_angle;
+        }
+        else
+        {
+            x_object_rotation.transform.Rotate(new Vector3(1, 0, 0) * Input.GetAxis("Mouse Y") * Time.deltaTime * speed_y);
+        }
+
+        if (x_angle_restrictions < 360)
+        {
+            x_angle += Input.GetAxis("Mouse X") * Time.deltaTime * speed_y;
+
+            if (x_angle < -x_angle_restrictions / 2)
+            {
+                x_angle = -x_angle_restrictions / 2;
+            }
+            else if (x_angle > x_angle_restrictions / 2)
+            {
+                x_angle = x_angle_restrictions / 2;
+            }
+
+            y_object_rotation.transform.Rotate(new Vector3(0, x_angle - x_angle_old, 0));
+            x_angle_old = x_angle;
+        }
+        else
+        {
+            y_object_rotation.transform.Rotate(new Vector3(0, 1, 0) * Input.GetAxis("Mouse X") * Time.deltaTime * speed_x);
+        }
+    }
+}
